@@ -18,7 +18,9 @@ if not exist ".git" (
   exit /b 1
 )
 
-REM Local settings stay out of the repository, so a pull never overwrites them.
+REM Remember where we were, so the pull can be compared against it afterwards.
+for /f "delims=" %%R in ('git rev-parse HEAD') do set "BEFORE=%%R"
+
 echo Fetching the latest version...
 git pull --ff-only
 if errorlevel 1 (
@@ -29,10 +31,52 @@ if errorlevel 1 (
   exit /b 1
 )
 
+for /f "delims=" %%R in ('git rev-parse HEAD') do set "AFTER=%%R"
+if "%BEFORE%"=="%AFTER%" (
+  echo.
+  echo Already up to date. Nothing to restart.
+  pause
+  exit /b 0
+)
+
+REM Only a change to the Python side needs the server restarted. Page and
+REM extension changes are picked up by reloading, which costs nothing.
+set "RESTART="
+set "EXTENSION="
+set "PAGE="
+git diff --quiet %BEFORE% %AFTER% -- "*.py" "*.pyw" requirements.txt config.example.json || set "RESTART=1"
+git diff --quiet %BEFORE% %AFTER% -- extension || set "EXTENSION=1"
+git diff --quiet %BEFORE% %AFTER% -- static || set "PAGE=1"
+
 echo.
 echo Checking prerequisites...
-call "%~dp0Start Private Chat.cmd" /check
+call "%~dp0Start Private Chat.cmd" /check < nul >nul
+if errorlevel 1 (
+  echo Setup failed. Run "Start Private Chat.cmd /check" to see why.
+  pause
+  exit /b 1
+)
 
-echo Reload the Chrome companion at chrome://extensions to pick up extension changes.
+if defined RESTART (
+  echo Restarting the local service. Chats held in this session are cleared.
+  call :stop
+  start "Private Chat" ".venv\Scripts\pythonw.exe" "%~dp0launch.pyw"
+  echo Restarted.
+) else (
+  echo The local service is unchanged and keeps running.
+)
+
+if defined PAGE echo Reload the Private Chat page to pick up the new interface.
+if defined EXTENSION echo Reload the companion at chrome://extensions to pick up the new extension.
+echo.
 pause
+exit /b 0
+
+:stop
+REM Stop whatever is listening on the app's port, so the new one can bind it.
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /r /c:"TCP *127.0.0.1:8787 .*LISTENING"') do (
+  taskkill /PID %%P /F >nul 2>&1
+)
+REM Give the socket a moment to be released before rebinding it.
+ping -n 3 127.0.0.1 >nul
 exit /b 0
