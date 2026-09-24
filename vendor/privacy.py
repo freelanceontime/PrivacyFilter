@@ -307,6 +307,10 @@ def redact_text(text, vault, known=(), model=None, local_call=ollama_json,
         ('PATH', r"(?<=')/[^'\n]+(?=')"),
         ('PATH', r'(?<![\w:/])/(?:[^\s<>"\x27,;]+)'),
         ('EMAIL', r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}'),
+        # A JWT, whole or just its header: "eyJ" is base64 for '{"', so nothing
+        # else starts that way. Catch it by rule rather than hope a model does.
+        ('SECRET', r'\beyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]+){0,2}'),
+        ('SECRET', r'(?i)\bbearer\s+([A-Za-z0-9._~+/=-]{8,})'),
         ('SECRET', r'(?i)(?:password|passwd|secret|token|api[_ -]?key)\s*[:=]\s*(?:"([^"]+)"|\x27([^\x27]+)\x27|([^\s,;]+))')]:
         for match in re.finditer(pattern, text):
             value = next((g for g in match.groups() if g is not None), match.group())
