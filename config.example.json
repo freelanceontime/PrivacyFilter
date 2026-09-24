@@ -1,0 +1,7 @@
+{
+  "local_ai": "http://127.0.0.1:11434",
+  "local_model": "gemma4:latest",
+  "allow_remote_ai": false,
+  "ai_auth_token": "",
+  "reply_style": "normal"
+}

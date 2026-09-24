@@ -1,0 +1,13 @@
+# Rebuilt per machine by Start Private Chat.cmd
+.venv/
+__pycache__/
+*.pyc
+
+# Local settings: may hold an access token for the filtering model.
+# Copy config.example.json to config.json and edit it.
+config.json
+
+# Test and development output
+node_modules/
+artifacts/
+package-lock.json
