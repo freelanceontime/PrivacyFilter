@@ -27,6 +27,18 @@ function node(tag, className, text) {
   if (text !== undefined) element.textContent = text;
   return element;
 }
+// The composer grows with what is in it, up to the height the stylesheet caps,
+// after which it scrolls. Every path that changes the value calls this.
+function fitComposer() {
+  const prompt = $('prompt');
+  prompt.style.height = 'auto';
+  prompt.style.height = prompt.scrollHeight + 'px';
+}
+function setPrompt(value) {
+  $('prompt').value = value;
+  $('character-count').textContent = value.length.toLocaleString();
+  fitComposer();
+}
 function updateList() {
   $('chat-list').replaceChildren();
   for (const [id, chat] of chats) {
@@ -167,7 +179,7 @@ function render() {
   if (chat.manualReason) $('manual-reason').textContent = chat.manualReason;
   if (chat.error) {
     error(chat.error);
-    if (chat.draft && !$('prompt').value) { $('prompt').value=chat.draft; $('character-count').textContent=chat.draft.length.toLocaleString(); $('send').disabled=false; }
+    if (chat.draft && !$('prompt').value) { setPrompt(chat.draft); $('send').disabled=false; }
   }
 }
 async function newChat() {
@@ -175,7 +187,7 @@ async function newChat() {
   creating = true;
   try {
     const chat = await api('chats'); chats.set(chat.id, chat); current = chat.id;
-    selectedComparison = null; error(''); $('prompt').value = ''; $('character-count').textContent = '0'; render(); $('prompt').focus();
+    selectedComparison = null; error(''); setPrompt(''); render(); $('prompt').focus();
   } catch (e) { error(e.message); } finally { creating = false; }
 }
 async function send() {
@@ -187,7 +199,7 @@ async function send() {
   try {
     const updated = await api(`chats/${chat.id}/prepare`, {text, review: $('review-toggle').checked});
     Object.assign(chat, updated, {draft: text, manual: false, manualReason: null});
-    $('prompt').value = ''; $('character-count').textContent = '0'; render();
+    setPrompt(''); render();
   } catch (e) { chat.state = 'idle'; render(); error(e.message); }
 }
 async function dispatch(chat) {
@@ -263,7 +275,15 @@ window.addEventListener('message', async event => {
 });
 $('composer').onsubmit = event => { event.preventDefault(); send(); };
 $('prompt').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {event.preventDefault(); send();} };
-$('prompt').oninput = () => { $('character-count').textContent = $('prompt').value.length.toLocaleString(); $('send').disabled = busy(chats.get(current)) || !$('prompt').value.trim(); };
+$('prompt').oninput = () => {
+  $('character-count').textContent = $('prompt').value.length.toLocaleString();
+  $('send').disabled = busy(chats.get(current)) || !$('prompt').value.trim();
+  fitComposer();
+};
+// A paste lands after the event, and rewrapping on resize changes the height.
+$('prompt').addEventListener('paste', () => setTimeout(fitComposer, 0));
+window.addEventListener('resize', fitComposer);
+fitComposer();
 $('new-chat').onclick = newChat;
 $('compare-toggle').onchange = () => { selectedComparison = null; render(); };
 $('setup-button').onclick = () => $('setup').showModal();
