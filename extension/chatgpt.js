@@ -336,12 +336,12 @@
       const text = editorText(editor);
       const noConversation = !document.querySelector('[data-message-author-role="user"]');
       respond({ready:visible(editor), fresh:visible(editor) && noConversation && !String(text ?? '').trim(),
-        ownDraft:visible(editor) && noConversation && String(text ?? '').trim().startsWith('Answer the conversation below. Tokens in the form [[PRIVATE_')});
+        ownDraft:visible(editor) && noConversation && String(text ?? '').includes('[[PRIVATE_')});
     } else if (message.type === 'clear-own-draft') {
       const editor = editorElement();
       const text = editorText(editor);
       const ownDraft = visible(editor) && !document.querySelector('[data-message-author-role="user"]') &&
-        String(text ?? '').trim().startsWith('Answer the conversation below. Tokens in the form [[PRIVATE_');
+        String(text ?? '').includes('[[PRIVATE_');
       if (!ownDraft) { respond({ok:false}); return; }
       editor.focus();
       if (editor instanceof HTMLTextAreaElement) {

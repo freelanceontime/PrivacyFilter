@@ -26,6 +26,7 @@ let modelDown = false;
 let extensionVersion = null;
 let chatSignedIn = false;
 let chatTabs = 0;
+let defaultInstructions = '';
 let modelReason = '';
 function node(tag, className, text) {
   const element = document.createElement(tag); element.className = className;
@@ -432,13 +433,15 @@ function showSettings(data) {
   $('ai-model').value = data.local_model || '';
   $('ai-remote').checked = Boolean(data.allow_remote_ai);
   $('reply-style').value = data.reply_style === 'revised' ? 'revised' : 'normal';
+  $('instructions').value = data.instructions || '';
+  if (data.default_instructions) defaultInstructions = data.default_instructions;
   $('token-state').textContent = data.authenticated ? '· saved' : '· none set';
   if (data.config_path) $('config-path').textContent = data.config_path;
 }
 function settingsBody(extra) {
   return {local_ai: $('ai-url').value, local_model: $('ai-model').value,
           allow_remote_ai: $('ai-remote').checked, ai_auth_token: $('ai-token').value,
-          reply_style: $('reply-style').value, ...extra};
+          reply_style: $('reply-style').value, instructions: $('instructions').value, ...extra};
 }
 function settingsStatus(message, failed) {
   $('settings-status').textContent = message;
@@ -497,6 +500,10 @@ $('test-settings').onclick = async () => {
       : `Reached it, but ${$('ai-model').value} is not installed. Available: ${result.sample.join(', ') || 'none'}.`,
       !result.has_model);
   } catch (e) { settingsStatus(e.message, true); }
+};
+$('reset-instructions').onclick = () => {
+  $('instructions').value = defaultInstructions;
+  settingsStatus('Default restored. Save to apply it.');
 };
 $('clear-token').onclick = async () => {
   try {

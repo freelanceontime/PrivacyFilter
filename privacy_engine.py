@@ -35,7 +35,12 @@ REVISED_ONLY = ('For proofreading, grammar correction, spelling correction, or r
 
 
 def instructions():
-    return INSTRUCTIONS + (REVISED_ONLY if os.environ.get('PRIVATE_CHAT_REPLY_STYLE') == 'revised' else '')
+    """The preamble ChatGPT sees. Editable, because it is guidance to the cloud
+    model, not a privacy control: redaction already happened locally, and a
+    mangled token is refused on the way back rather than trusted."""
+    custom = os.environ.get('PRIVATE_CHAT_INSTRUCTIONS', '').strip()
+    base = (custom + '\n') if custom else INSTRUCTIONS
+    return base + (REVISED_ONLY if os.environ.get('PRIVATE_CHAT_REPLY_STYLE') == 'revised' else '')
 
 
 def mask_known(text, vault):
