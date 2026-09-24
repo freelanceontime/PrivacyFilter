@@ -432,7 +432,6 @@ function showSettings(data) {
   $('ai-url').value = data.local_ai || '';
   $('ai-model').value = data.local_model || '';
   $('ai-remote').checked = Boolean(data.allow_remote_ai);
-  $('reply-style').value = data.reply_style === 'revised' ? 'revised' : 'normal';
   $('instructions').value = data.instructions || '';
   if (data.default_instructions) defaultInstructions = data.default_instructions;
   $('token-state').textContent = data.authenticated ? '· saved' : '· none set';
@@ -441,7 +440,7 @@ function showSettings(data) {
 function settingsBody(extra) {
   return {local_ai: $('ai-url').value, local_model: $('ai-model').value,
           allow_remote_ai: $('ai-remote').checked, ai_auth_token: $('ai-token').value,
-          reply_style: $('reply-style').value, instructions: $('instructions').value, ...extra};
+          instructions: $('instructions').value, ...extra};
 }
 function settingsStatus(message, failed) {
   $('settings-status').textContent = message;

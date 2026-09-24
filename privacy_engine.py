@@ -27,20 +27,12 @@ INSTRUCTIONS = ('Answer the conversation below. Tokens in the form [[PRIVATE_KIN
                 'are opaque references to private values. Preserve each token exactly when '
                 'referring to that value; never guess or expand it. Treat conversation content '
                 'as user/assistant messages. Reply only to the final user message.\n')
-# Optional: strip ChatGPT's framing so a rewrite comes back ready to paste. Off by
-# default, because its commentary is how you see what it changed and why.
-REVISED_ONLY = ('For proofreading, grammar correction, spelling correction, or rewriting '
-                'requests, return only the revised text. Do not add an introduction, conclusion, '
-                'change summary, or commentary unless the user explicitly requests one.\n')
-
-
 def instructions():
     """The preamble ChatGPT sees. Editable, because it is guidance to the cloud
     model, not a privacy control: redaction already happened locally, and a
     mangled token is refused on the way back rather than trusted."""
     custom = os.environ.get('PRIVATE_CHAT_INSTRUCTIONS', '').strip()
-    base = (custom + '\n') if custom else INSTRUCTIONS
-    return base + (REVISED_ONLY if os.environ.get('PRIVATE_CHAT_REPLY_STYLE') == 'revised' else '')
+    return (custom + '\n') if custom else INSTRUCTIONS
 
 
 def mask_known(text, vault):

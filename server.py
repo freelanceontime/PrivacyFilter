@@ -29,7 +29,7 @@ def load_config():
         print(f'Ignoring {CONFIG.name}: {error}', flush=True)
         return
     for key, name in (('local_ai', 'PI_PRIVACY_ENDPOINT'), ('local_model', 'PI_PRIVACY_MODEL'),
-                      ('ai_auth_token', 'PI_PRIVACY_AUTH_TOKEN'), ('reply_style', 'PRIVATE_CHAT_REPLY_STYLE'),
+                      ('ai_auth_token', 'PI_PRIVACY_AUTH_TOKEN'),
                       ('instructions', 'PRIVATE_CHAT_INSTRUCTIONS')):
         value = data.get(key)
         if isinstance(value, str) and value.strip():
@@ -101,7 +101,6 @@ def current_settings():
     return {'local_ai': detector.configured_local_endpoint(), 'local_model': detector.configured_local_model(),
             'allow_remote_ai': detector.remote_allowed(), 'remote': detector.is_remote(),
             'authenticated': bool(detector.auth_header()), 'config_path': str(CONFIG),
-            'reply_style': 'revised' if os.environ.get('PRIVATE_CHAT_REPLY_STYLE') == 'revised' else 'normal',
             'instructions': (os.environ.get('PRIVATE_CHAT_INSTRUCTIONS', '').strip()
                              or privacy_engine.INSTRUCTIONS.strip()),
             'default_instructions': privacy_engine.INSTRUCTIONS.strip()}
@@ -129,14 +128,13 @@ def requested(body):
         token = os.environ.get('PI_PRIVACY_AUTH_TOKEN', '')  # blank means "leave it alone"
     if len(token) > 500:
         raise Blocked('That token is too long.')
-    style = 'revised' if body.get('reply_style') == 'revised' else 'normal'
     text = body.get('instructions')
     text = text.strip() if isinstance(text, str) else ''
     if len(text) > 2000:
         raise Blocked('Keep the instructions under 2,000 characters.')
     # Storing the default as empty lets a later improvement to it still apply.
     guidance = '' if text == privacy_engine.INSTRUCTIONS.strip() else text
-    return endpoint, model, allow_remote, token.strip(), style, guidance
+    return endpoint, model, allow_remote, token.strip(), guidance
 
 
 # A short-lived cache: the page asks often, and the probe must not become a
@@ -183,17 +181,16 @@ def read_settings():
 def write_settings():
     body = request.get_json(silent=True)
     try:
-        endpoint, model, allow_remote, token, style, guidance = requested(body if isinstance(body, dict) else {})
+        endpoint, model, allow_remote, token, guidance = requested(body if isinstance(body, dict) else {})
     except Blocked as error:
         return jsonify(error=str(error)), 422
     os.environ.update({'PI_PRIVACY_ENDPOINT': endpoint, 'PI_PRIVACY_MODEL': model,
                        'PI_PRIVACY_ALLOW_REMOTE': '1' if allow_remote else '',
-                       'PI_PRIVACY_AUTH_TOKEN': token, 'PRIVATE_CHAT_REPLY_STYLE': style,
-                       'PRIVATE_CHAT_INSTRUCTIONS': guidance})
+                       'PI_PRIVACY_AUTH_TOKEN': token, 'PRIVATE_CHAT_INSTRUCTIONS': guidance})
     try:
         CONFIG.write_text(json.dumps({'local_ai': endpoint, 'local_model': model,
                                       'allow_remote_ai': allow_remote, 'ai_auth_token': token,
-                                      'reply_style': style, 'instructions': guidance},
+                                      'instructions': guidance},
                                      indent=2) + '\n', encoding='utf-8')
     except OSError:
         return jsonify(error=f'Settings applied, but {CONFIG.name} could not be written.'), 500
@@ -205,7 +202,7 @@ def write_settings():
 def test_settings():
     body = request.get_json(silent=True)
     try:
-        endpoint, model, _allow, token, _style, _guidance = requested(body if isinstance(body, dict) else {})
+        endpoint, model, _allow, token, _guidance = requested(body if isinstance(body, dict) else {})
     except Blocked as error:
         return jsonify(error=str(error)), 422
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
