@@ -9,6 +9,14 @@ if (location.origin === 'http://127.0.0.1:8787') {
     // throws, so a send would disappear without reaching the companion.
     if (!connected()) { publish({type:'stale'}); return; }
     if (data.type === 'ping') { publish({type:'ready',version:chrome.runtime.getManifest().version}); return; }
+    if (data.type === 'status') {
+      try {
+        chrome.runtime.sendMessage({type:'status'}, response => {
+          if (!chrome.runtime.lastError && response) publish({type:'status', ...response});
+        });
+      } catch { publish({type:'stale'}); }
+      return;
+    }
     if (!['send','cancel'].includes(data.type) || typeof data.id !== 'string' || data.id.length > 80) return;
     if (data.type === 'send' && (typeof data.text !== 'string' || data.text.length > 100000)) return;
     try {

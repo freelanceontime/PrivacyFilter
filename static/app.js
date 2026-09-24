@@ -23,6 +23,8 @@ const TOKEN = /\[\[PRIVATE_[A-Z]+_[a-f0-9]+_\d+\]\]/g;
 let selected = '';
 let packagedExtension = null;
 let modelDown = false;
+let extensionVersion = null;
+let chatSignedIn = false;
 let modelReason = '';
 function node(tag, className, text) {
   const element = document.createElement(tag); element.className = className;
@@ -60,6 +62,20 @@ function updateList() {
     row.append(button, remove); $('chat-list').append(row);
   }
 }
+function step(id, done) { $(id).classList.toggle('done', Boolean(done)); }
+function updateSetup() {
+  const loaded = connected && (!packagedExtension || extensionVersion === packagedExtension);
+  step('step-developer', loaded);
+  step('step-load', loaded);
+  step('step-signin', chatSignedIn);
+  step('step-ready', loaded && chatSignedIn);
+  $('step-ready-text').textContent = loaded && chatSignedIn
+    ? 'Ready. The companion reuses one ChatGPT tab and returns completed replies here.'
+    : connected && !loaded
+    ? `Reload the companion at chrome://extensions: v${extensionVersion} is loaded, v${packagedExtension} is ready.`
+    : 'Reload this page once the steps above are done.';
+}
+function askStatus() { window.postMessage({source:'private-chat-page', type:'status'}, location.origin); }
 function showExtraction(chat) {
   // Structural diagnostics from the companion, so a bad capture can be reported
   // with what the extractor actually saw.
@@ -239,11 +255,12 @@ window.addEventListener('message', async event => {
   if (event.source !== window || event.origin !== location.origin || event.data?.source !== 'private-chat-companion') return;
   const data = event.data;
   if (data.type === 'stale') {
-    connected = false;
+    connected = false; chatSignedIn = false; updateSetup();
     $('connection').classList.remove('connected');
     $('connection-text').textContent = 'Companion updated — reload this page to reconnect';
     return;
   }
+  if (data.type === 'status') { chatSignedIn = Boolean(data.signedIn); updateSetup(); return; }
   if (data.type === 'ready') {
     connected = true; $('connection').classList.add('connected'); $('connection-text').textContent = 'Chrome companion connected';
     if (data.version) $('connection-text').textContent += ' · v' + data.version;
@@ -256,7 +273,8 @@ window.addEventListener('message', async event => {
     } else {
       $('connection').classList.remove('outdated');
     }
-    $('setup-button').textContent = 'Details'; render(); return;
+    extensionVersion = data.version || null;
+    $('setup-button').textContent = 'Details'; updateSetup(); render(); return;
   }
   const chat = [...chats.values()].find(c => c.pending?.id === data.id);
   if (!chat) return;
@@ -289,8 +307,13 @@ window.addEventListener('resize', fitComposer);
 fitComposer();
 $('new-chat').onclick = newChat;
 $('compare-toggle').onchange = () => { selectedComparison = null; render(); };
-$('setup-button').onclick = () => $('setup').showModal();
-$('close-setup').onclick = () => $('setup').close();
+let setupWatch = null;
+$('setup-button').onclick = () => {
+  updateSetup(); askStatus();
+  setupWatch = setInterval(askStatus, 4000);
+  $('setup').showModal();
+};
+$('close-setup').onclick = () => { clearInterval(setupWatch); setupWatch = null; $('setup').close(); };
 $('cancel').onclick = async () => {
   const chat = chats.get(current); if (!chat) return;
   try {
@@ -449,6 +472,7 @@ $('clear-token').onclick = async () => {
   } catch (e) { settingsStatus(e.message, true); }
 };
 function ping() { window.postMessage({source:'private-chat-page',type:'ping'},location.origin); }
+setTimeout(askStatus, 1200);
 setInterval(ping, 3000); ping();
 setTimeout(() => { if (!connected) $('connection-text').textContent = 'Connect the Chrome companion to use your ChatGPT account'; }, 1600);
 newChat();

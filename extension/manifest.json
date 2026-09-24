@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Private Chat Companion",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "Send locally filtered messages through your signed-in ChatGPT tab and return replies to Private Chat.",
   "permissions": [
     "storage",

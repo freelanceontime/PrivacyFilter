@@ -57,9 +57,21 @@ async function finish(id, message) {
   await sendLocal(job.localTab, {...message,id});
   // Leave the ChatGPT tab available for inspection; never close a user's tab.
 }
+async function chatStatus() {
+  // A composer only exists once the account is signed in, so its presence is
+  // the honest signal for "ChatGPT is ready", not merely an open tab.
+  const tabs = await chrome.tabs.query({url:'https://chatgpt.com/*'});
+  let signedIn = false;
+  for (const tab of tabs) {
+    const state = await chrome.tabs.sendMessage(tab.id,{type:'inspect'}).catch(() => null);
+    if (state?.ready) { signedIn = true; break; }
+  }
+  return {tabs:tabs.length, signedIn, version:chrome.runtime.getManifest().version};
+}
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   (async () => {
     if (sender.url?.startsWith(LOCAL + '/') && sender.frameId === 0) {
+      if (message.type === 'status') return await chatStatus();
       if (typeof message.id !== 'string' || !/^[A-Za-z0-9_-]{20,80}$/.test(message.id)) throw new Error('Invalid message identifier.');
       if (message.type === 'cancel') {
         const key = jobKey(message.id); const job = (await chrome.storage.session.get(key))[key];
@@ -94,7 +106,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if (message.type === 'error') await finish(message.id,{type:'error',message:message.message,debug});
       if (message.type === 'progress') await sendLocal(job.localTab,{type:'progress',id:message.id,message:message.message});
     }
-  })().then(() => respond({ok:true}), () => respond({error:'Could not connect to the ChatGPT tab. Check your sign-in and extension permissions.'}));
+  })().then(result => respond({ok:true, ...(result || {})}),
+            () => respond({error:'Could not connect to the ChatGPT tab. Check your sign-in and extension permissions.'}));
   return true;
 });
 async function nudge(tabId, key) {
