@@ -25,6 +25,7 @@ let packagedExtension = null;
 let modelDown = false;
 let extensionVersion = null;
 let chatSignedIn = false;
+let chatTabs = 0;
 let modelReason = '';
 function node(tag, className, text) {
   const element = document.createElement(tag); element.className = className;
@@ -68,6 +69,9 @@ function updateSetup() {
   step('step-developer', loaded);
   step('step-load', loaded);
   step('step-signin', chatSignedIn);
+  $('step-signin-text').textContent = chatSignedIn ? 'Signed in to ChatGPT in this browser.'
+    : chatTabs ? 'A ChatGPT tab is open but not signed in. Sign in to continue.'
+    : 'Open ChatGPT in that browser and sign in normally.';
   step('step-ready', loaded && chatSignedIn);
   $('step-ready-text').textContent = loaded && chatSignedIn
     ? 'Ready. The companion reuses one ChatGPT tab and returns completed replies here.'
@@ -260,7 +264,12 @@ window.addEventListener('message', async event => {
     $('connection-text').textContent = 'Companion updated — reload this page to reconnect';
     return;
   }
-  if (data.type === 'status') { chatSignedIn = Boolean(data.signedIn); updateSetup(); return; }
+  if (data.type === 'status') {
+    chatSignedIn = Boolean(data.signedIn);
+    chatTabs = Number(data.tabs) || 0;
+    updateSetup();
+    return;
+  }
   if (data.type === 'ready') {
     connected = true; $('connection').classList.add('connected'); $('connection-text').textContent = 'Chrome companion connected';
     if (data.version) $('connection-text').textContent += ' · v' + data.version;
@@ -307,13 +316,8 @@ window.addEventListener('resize', fitComposer);
 fitComposer();
 $('new-chat').onclick = newChat;
 $('compare-toggle').onchange = () => { selectedComparison = null; render(); };
-let setupWatch = null;
-$('setup-button').onclick = () => {
-  updateSetup(); askStatus();
-  setupWatch = setInterval(askStatus, 4000);
-  $('setup').showModal();
-};
-$('close-setup').onclick = () => { clearInterval(setupWatch); setupWatch = null; $('setup').close(); };
+$('setup-button').onclick = () => { updateSetup(); askStatus(); $('setup').showModal(); };
+$('close-setup').onclick = () => $('setup').close();
 $('cancel').onclick = async () => {
   const chat = chats.get(current); if (!chat) return;
   try {
@@ -471,8 +475,10 @@ $('clear-token').onclick = async () => {
     $('ai-token').value = ''; settingsStatus('Token removed.');
   } catch (e) { settingsStatus(e.message, true); }
 };
-function ping() { window.postMessage({source:'private-chat-page',type:'ping'},location.origin); }
-setTimeout(askStatus, 1200);
+function ping() {
+  window.postMessage({source:'private-chat-page',type:'ping'},location.origin);
+  askStatus();
+}
 setInterval(ping, 3000); ping();
 setTimeout(() => { if (!connected) $('connection-text').textContent = 'Connect the Chrome companion to use your ChatGPT account'; }, 1600);
 newChat();
