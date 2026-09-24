@@ -412,7 +412,10 @@ async function checkModel() {
   if (chats.get(current)) render();
 }
 checkModel();
-setInterval(checkModel, 20000);
+// Once a minute is enough for a service that either answers or does not. A
+// focus check keeps it responsive when you come back from a VPN; that request
+// is loopback and normally served from the cache, so it adds no load.
+setInterval(checkModel, 60000);
 window.addEventListener('focus', checkModel);
 $('settings-button').onclick = async () => {
   settingsStatus('');

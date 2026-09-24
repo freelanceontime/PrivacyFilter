@@ -154,7 +154,8 @@ def probe_model(timeout=2.5):
 @app.get('/api/model')
 def model_status():
     now = time.monotonic()
-    if model_state['value'] is None or now - model_state['checked'] > 10:
+    # One probe a minute at most, however many pages or tabs are asking.
+    if model_state['value'] is None or now - model_state['checked'] > 60:
         model_state.update(value=probe_model(), checked=now)
     return jsonify(model_state['value'])
 
