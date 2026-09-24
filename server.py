@@ -125,6 +125,40 @@ def requested(body):
     return endpoint, model, allow_remote, token.strip(), style
 
 
+# A short-lived cache: the page asks often, and the probe must not become a
+# second source of load on the model service. Deliberately outside the chat
+# lock, so a slow or dead endpoint cannot stall the rest of the app.
+model_state = {'checked': 0.0, 'value': None}
+
+
+def probe_model(timeout=2.5):
+    model = detector.configured_local_model()
+    try:
+        endpoint = detector.approved_endpoint()
+    except Blocked as error:
+        return {'endpoint': detector.configured_local_endpoint(), 'model': model,
+                'reachable': False, 'installed': None, 'reason': str(error)}
+    probe = urllib.request.Request(endpoint + '/api/tags',
+                                   headers={'ngrok-skip-browser-warning': 'true', **detector.auth_header()})
+    try:
+        with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(probe, timeout=timeout) as response:
+            names = [item.get('name') for item in json.load(response).get('models', [])]
+    except Exception:
+        return {'endpoint': endpoint, 'model': model, 'reachable': False, 'installed': None,
+                'reason': 'The filtering service is not responding.'}
+    return {'endpoint': endpoint, 'model': model, 'reachable': True, 'installed': model in names,
+            'remote': detector.is_remote(endpoint),
+            'reason': None if model in names else 'That model is not installed on the service.'}
+
+
+@app.get('/api/model')
+def model_status():
+    now = time.monotonic()
+    if model_state['value'] is None or now - model_state['checked'] > 10:
+        model_state.update(value=probe_model(), checked=now)
+    return jsonify(model_state['value'])
+
+
 @app.get('/api/settings')
 def read_settings():
     return jsonify(current_settings())
@@ -147,6 +181,7 @@ def write_settings():
                                      indent=2) + '\n', encoding='utf-8')
     except OSError:
         return jsonify(error=f'Settings applied, but {CONFIG.name} could not be written.'), 500
+    model_state.update(value=None, checked=0.0)
     return jsonify(current_settings())
 
 

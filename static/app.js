@@ -22,6 +22,8 @@ function busy(chat) { return chat && ['filtering', 'reviewing', 'prepared', 'sen
 const TOKEN = /\[\[PRIVATE_[A-Z]+_[a-f0-9]+_\d+\]\]/g;
 let selected = '';
 let packagedExtension = null;
+let modelDown = false;
+let modelReason = '';
 function node(tag, className, text) {
   const element = document.createElement(tag); element.className = className;
   if (text !== undefined) element.textContent = text;
@@ -170,7 +172,8 @@ function render() {
   const latest = [...chat.messages].reverse().find(m => m.role === 'user');
   showComparison(selectedComparison || chat.pending || (chat.state === 'filtering' ? {original: chat.draft} : latest));
   showExtraction(chat);
-  $('status-text').textContent = chat.progress || 'Ready';
+  $('status-text').textContent = !active && modelDown ? modelReason : (chat.progress || 'Ready');
+  $('status').classList.toggle('stalled', !active && modelDown);
   $('status').classList.toggle('busy', active);
   $('cancel').hidden = !active;
   $('prompt').disabled = active;
@@ -367,7 +370,6 @@ $('theme').onchange = () => {
 function showSettings(data) {
   const address = String(data.local_ai || '').replace(/^https?:\/\//, '');
   if (!address) return;
-  $('local-ai').textContent = `${data.remote ? 'Remote' : 'Local'} AI: ${address} · ChatGPT replies`;
   $('setup-local-ai').textContent = `${address} · ${data.local_model}`;
   $('remote-note').hidden = !data.remote;
   $('ai-url').value = data.local_ai || '';
@@ -388,6 +390,30 @@ function settingsStatus(message, failed) {
 }
 api('settings', null, 'GET').then(showSettings).catch(() => {});
 api('health', null, 'GET').then(health => { packagedExtension = health.extension_version || null; }).catch(() => {});
+
+// The filtering model is on the network: say what was actually checked, rather
+// than showing a healthy light for a service nobody has spoken to.
+async function checkModel() {
+  try {
+    const status = await api('model', null, 'GET');
+    const address = String(status.endpoint || '').replace(/^https?:\/\//, '');
+    modelDown = !status.reachable || status.installed === false;
+    $('local-dot').classList.toggle('down', modelDown);
+    $('local-ai').textContent = !status.reachable ? `No answer from ${address}`
+      : status.installed === false ? `${status.model} missing on ${address}`
+      : `${status.remote ? 'Remote' : 'Local'} AI: ${address} · ChatGPT replies`;
+    modelReason = modelDown ? (status.reason || 'The filtering model is unavailable.') : '';
+  } catch {
+    modelDown = true;
+    modelReason = 'The local service is not answering.';
+    $('local-dot').classList.add('down');
+    $('local-ai').textContent = 'Local service unavailable';
+  }
+  if (chats.get(current)) render();
+}
+checkModel();
+setInterval(checkModel, 20000);
+window.addEventListener('focus', checkModel);
 $('settings-button').onclick = async () => {
   settingsStatus('');
   try { showSettings(await api('settings', null, 'GET')); } catch (e) { settingsStatus(e.message, true); }
@@ -398,6 +424,7 @@ $('save-settings').onclick = async () => {
   settingsStatus('Saving…');
   try {
     showSettings(await api('settings', settingsBody()));
+    await checkModel();
     $('ai-token').value = '';
     settingsStatus('Saved. New messages use these settings.');
   } catch (e) { settingsStatus(e.message, true); }
