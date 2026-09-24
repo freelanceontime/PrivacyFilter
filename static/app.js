@@ -27,6 +27,7 @@ let extensionVersion = null;
 let chatSignedIn = false;
 let chatTabs = 0;
 let defaultInstructions = '';
+let defaultDetector = '';
 let modelReason = '';
 function node(tag, className, text) {
   const element = document.createElement(tag); element.className = className;
@@ -433,6 +434,8 @@ function showSettings(data) {
   $('ai-model').value = data.local_model || '';
   $('ai-remote').checked = Boolean(data.allow_remote_ai);
   $('instructions').value = data.instructions || '';
+  $('detector-prompt').value = data.detector_prompt || '';
+  if (data.default_detector_prompt) defaultDetector = data.default_detector_prompt;
   if (data.default_instructions) defaultInstructions = data.default_instructions;
   $('token-state').textContent = data.authenticated ? '· saved' : '· none set';
   if (data.config_path) $('config-path').textContent = data.config_path;
@@ -440,7 +443,7 @@ function showSettings(data) {
 function settingsBody(extra) {
   return {local_ai: $('ai-url').value, local_model: $('ai-model').value,
           allow_remote_ai: $('ai-remote').checked, ai_auth_token: $('ai-token').value,
-          instructions: $('instructions').value, ...extra};
+          instructions: $('instructions').value, detector_prompt: $('detector-prompt').value, ...extra};
 }
 function settingsStatus(message, failed) {
   $('settings-status').textContent = message;
@@ -499,6 +502,10 @@ $('test-settings').onclick = async () => {
       : `Reached it, but ${$('ai-model').value} is not installed. Available: ${result.sample.join(', ') || 'none'}.`,
       !result.has_model);
   } catch (e) { settingsStatus(e.message, true); }
+};
+$('reset-detector').onclick = () => {
+  $('detector-prompt').value = defaultDetector;
+  settingsStatus('Default restored. Save to apply it.');
 };
 $('reset-instructions').onclick = () => {
   $('instructions').value = defaultInstructions;
