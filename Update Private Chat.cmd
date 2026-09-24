@@ -12,11 +12,13 @@ if /i not "%~1"=="/worker" (
     pause
     exit /b 1
   )
-  "%TEMP%\private-chat-update.cmd" /worker "%~dp0"
+  "%TEMP%\private-chat-update.cmd" /worker "%~dp0" %1
   exit /b %errorlevel%
 )
 
 set "ROOT=%~2"
+set "FORCE="
+if /i "%~3"=="/restart" set "FORCE=1"
 cd /d "%ROOT%"
 
 where git >nul 2>&1
@@ -49,7 +51,22 @@ if errorlevel 1 (
 for /f "delims=" %%R in ('git rev-parse HEAD') do set "AFTER=%%R"
 if "%BEFORE%"=="%AFTER%" (
   echo.
-  echo Already up to date. Nothing to restart.
+  echo Already up to date.
+  REM A machine that was several versions behind may have pulled the new files
+  REM through an older updater that never restarted anything, so check what is
+  REM actually running before deciding there is nothing to do.
+  if not defined FORCE (
+    ".venv\Scripts\python.exe" restart_check.py
+    if errorlevel 1 (
+      echo The running service already matches these files.
+      pause
+      exit /b 0
+    )
+    echo The running service is older than these files.
+  )
+  call :stop
+  start "Private Chat" "%ROOT%.venv\Scripts\pythonw.exe" "%ROOT%launch.pyw"
+  echo Restarted.
   pause
   exit /b 0
 )

@@ -47,6 +47,7 @@ app.secret_key = secrets.token_bytes(32)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 app.config.update(MAX_CONTENT_LENGTH=1024 * 1024, SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SAMESITE='Strict', SESSION_COOKIE_NAME='private_chat_session')
+STARTED = time.time()
 PORT = 8787
 ORIGIN = f'http://127.0.0.1:{PORT}'
 lock = threading.RLock()
@@ -88,7 +89,7 @@ def packaged_extension_version():
 @app.get('/api/health')
 def health():
     # The address and whether it is authenticated, never the credential itself.
-    return jsonify(app='private-chat-web', local_model=detector.configured_local_model(),
+    return jsonify(app='private-chat-web', started=STARTED, local_model=detector.configured_local_model(),
                    local_ai=detector.configured_local_endpoint(),
                    remote=detector.is_remote(), authenticated=bool(detector.auth_header()),
                    extension_version=packaged_extension_version())
