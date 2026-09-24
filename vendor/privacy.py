@@ -138,6 +138,7 @@ def ollama_json(messages, schema, model=None, endpoint=None):
             'think': False, 'options': {'temperature': 0, 'num_ctx': 8192, 'num_predict': 1800}}
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     category = 'invalid JSON'
+    unreachable = ''
     for attempt in range(2):
         request = urllib.request.Request(
             endpoint + '/api/chat', data=json.dumps(body).encode(),
@@ -163,10 +164,17 @@ def ollama_json(messages, schema, model=None, endpoint=None):
             raise
         except urllib.error.HTTPError as error:
             category = 'HTTP ' + str(error.code)
+            if error.code == 404:
+                # Ollama answers 404 for a model it does not have loaded.
+                raise Blocked('The filtering service has no model named ' + model +
+                              '. Check Settings, or install it on ' + endpoint + '.') from None
+            if error.code in (401, 403):
+                raise Blocked('The filtering service rejected the access token in Settings.') from None
             if error.code != 429 and error.code < 500:
                 raise Blocked('Local model request failed (' + category + '); cloud request blocked.') from None
         except (urllib.error.URLError, TimeoutError, OSError):
             category = 'connection or timeout failure'
+            unreachable = 'The filtering service at ' + endpoint + ' is not responding. Nothing was sent.'
         except (ValueError, KeyError, TypeError, AttributeError):
             category = 'invalid JSON'
             # Keep the original data intact and restate formatting locally, without
@@ -174,6 +182,8 @@ def ollama_json(messages, schema, model=None, endpoint=None):
             body['messages'] = [{'role': 'system', 'content':
                 'Return exactly one JSON object matching the supplied schema. '
                 'Do not ask questions or add commentary. '} ] + list(messages)
+    if unreachable:
+        raise Blocked(unreachable)
     raise Blocked('Local model failed after two attempts (' + category + '); cloud request blocked.')
 
 
