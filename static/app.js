@@ -44,12 +44,33 @@ function setPrompt(value) {
   $('character-count').textContent = value.length.toLocaleString();
   fitComposer();
 }
+function chatIcon() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'icon');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', 'M2.6 3.2h10.8a1 1 0 0 1 1 1v5.6a1 1 0 0 1-1 1H6.4L3.3 13.4v-2.6h-.7a1 1 0 0 1-1-1V4.2a1 1 0 0 1 1-1z');
+  svg.append(path);
+  return svg;
+}
+// Collapsed, the rail keeps only the marks: the diamond, the plus, the cog and
+// one icon per conversation.
+function applySidebar(collapsed) {
+  $('sidebar').classList.toggle('collapsed', collapsed);
+  $('collapse').setAttribute('aria-label', collapsed ? 'Expand the sidebar' : 'Collapse the sidebar');
+  $('collapse').title = collapsed ? 'Expand the sidebar' : 'Collapse the sidebar';
+}
 function updateList() {
   $('chat-list').replaceChildren();
   for (const [id, chat] of chats) {
     const row = node('div', 'chat-item' + (id === current ? ' active' : ''));
     const title = chat.messages.find(m => m.role === 'user')?.text || chat.pending?.original || 'New conversation';
-    const button = node('button', '', title); button.onclick = () => { current = id; selectedComparison = null; error(''); render(); };
+    const button = node('button', 'chat-open');
+    button.append(chatIcon(), node('span', 'label', title));
+    button.title = title;
+    button.onclick = () => { current = id; selectedComparison = null; error(''); render(); };
     const remove = node('button', 'delete', '×'); remove.setAttribute('aria-label', 'Delete conversation');
     remove.onclick = async () => {
       try {
@@ -315,6 +336,14 @@ $('prompt').addEventListener('paste', () => setTimeout(fitComposer, 0));
 window.addEventListener('resize', fitComposer);
 fitComposer();
 $('new-chat').onclick = newChat;
+let sidebarCollapsed = false;
+try { sidebarCollapsed = localStorage.getItem('sidebar') === 'collapsed'; } catch {}
+applySidebar(sidebarCollapsed);
+$('collapse').onclick = () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  applySidebar(sidebarCollapsed);
+  try { localStorage.setItem('sidebar', sidebarCollapsed ? 'collapsed' : ''); } catch {}
+};
 $('compare-toggle').onchange = () => { selectedComparison = null; render(); };
 $('setup-button').onclick = () => { updateSetup(); askStatus(); $('setup').showModal(); };
 $('close-setup').onclick = () => $('setup').close();

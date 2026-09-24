@@ -5,11 +5,14 @@
   <title>Private Chat</title><link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="/" aria-label="Private Chat home"><span class="brand-icon">◈</span> Private Chat</a>
-    <button id="new-chat" class="new-chat">＋ <span>New chat</span></button>
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-top">
+      <a class="brand" href="/" aria-label="Private Chat home"><span class="brand-icon">◈</span><span class="label">Private Chat</span></a>
+      <button id="collapse" class="collapse" aria-label="Collapse the sidebar" title="Collapse the sidebar"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg></button>
+    </div>
+    <button id="new-chat" class="new-chat" title="New chat"><span class="glyph">＋</span><span class="label">New chat</span></button>
     <div class="sidebar-label">THIS SESSION</div><nav id="chat-list" aria-label="Conversations"></nav>
-    <div class="sidebar-bottom"><button id="settings-button" class="text-button">Settings</button><small><span id="local-dot" class="local-dot"></span><span id="local-ai">Checking the filtering model…</span></small></div>
+    <div class="sidebar-bottom"><button id="settings-button" class="text-button" title="Settings"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.3l1 1.7a5.6 5.6 0 0 1 1.5.6l1.9-.4 1.4 2.4-1.3 1.4a5.6 5.6 0 0 1 0 1.6l1.3 1.4-1.4 2.4-1.9-.4a5.6 5.6 0 0 1-1.5.6l-1 1.7h-2.8l-1-1.7a5.6 5.6 0 0 1-1.5-.6l-1.9.4-1.4-2.4 1.3-1.4a5.6 5.6 0 0 1 0-1.6L1.4 5.6 2.8 3.2l1.9.4a5.6 5.6 0 0 1 1.5-.6l1-1.7z"/></svg><span class="label">Settings</span></button><small><span id="local-dot" class="local-dot"></span><span id="local-ai">Checking the filtering model…</span></small></div>
   </aside>
   <main>
     <header><div class="model">Private Chat <span>with ChatGPT</span></div><div class="toggles"><label class="toggle"><input id="review-toggle" type="checkbox"><span class="switch"></span> Review before sending</label><label class="toggle"><input id="compare-toggle" type="checkbox"><span class="switch"></span> Side by side</label></div></header>
