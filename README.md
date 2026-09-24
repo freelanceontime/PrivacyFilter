@@ -65,10 +65,14 @@ or anyone who finds the URL can run your GPU. With this on, the sidebar says
 reaches that host over the internet before it is filtered. What ChatGPT receives is
 unchanged: the filtered payload only.
 
-## Copying this to another machine
+## Installing on another machine
 
-Copy the whole folder (the `.venv` and `node_modules` folders are not needed and
-are rebuilt or ignored), then double-click **Start Private Chat.cmd**. It:
+```
+git clone https://github.com/freelanceontime/PrivacyFilter.git
+```
+
+Then double-click **Start Private Chat.cmd** in the clone. Copying the folder by
+hand works too (`.venv` and `node_modules` are rebuilt or ignored). The launcher:
 
 - finds Python 3.10 or later, and offers to install it with winget if there is none
 - creates `.venv` in the folder, rebuilding it if the one copied over belongs to
@@ -77,6 +81,20 @@ are rebuilt or ignored), then double-click **Start Private Chat.cmd**. It:
 - prints the path to load as the Chrome companion, then starts the app
 
 Run `Start Private Chat.cmd /check` to do the setup and stop, without launching.
+
+### Staying up to date
+
+A clone updates itself: the launcher runs `git pull --ff-only` before starting,
+so every machine picks up changes the next time it opens. **Update Private
+Chat.cmd** does the same on demand, with the prerequisite check after it.
+
+Chrome does not reload extensions on its own, so after an update the page says
+which companion version is loaded and which one is waiting. Reload it at
+`chrome://extensions` when it does.
+
+`config.json` is not in the repository: it can hold an access token, and each
+machine has its own. Copy `config.example.json` to `config.json` to change the
+model address, or use Settings in the app.
 
 Each machine still needs two things of its own: the Chrome extension loaded from
 that folder's `extension` directory at `chrome://extensions` with Developer mode
