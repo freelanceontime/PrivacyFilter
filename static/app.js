@@ -125,6 +125,12 @@ function renderReview(chat) {
   if (!reviewing) return;
   const text = chat.pending.redacted;
   const target = $('review-text');
+  const degraded = chat.pending.degraded;
+  $('review-degraded').hidden = !degraded;
+  if (degraded) {
+    $('review-degraded').textContent =
+      `${degraded} Only emails, URLs, file paths and labelled secrets were hidden automatically. Mark anything else private before sending, or discard the message.`;
+  }
   const count = chat.pending.references;
   $('review-count').textContent = count === 1 ? '1 private value hidden' : count + ' private values hidden';
   // Polling re-renders every second; rebuilding unchanged text would drop the

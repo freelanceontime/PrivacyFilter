@@ -298,11 +298,31 @@ def redact_job(chat_id, generation, original, vault, history, review=False):
                                  'outbound': outbound, 'references': len(candidate.values)},
                         staged_history=cloud_history)
     except Exception as error:
+        reason = str(error) if isinstance(error, Blocked) else 'Local filtering failed.'
+        # Detection failing is not a reason to lose the message. Fall back to
+        # the deterministic rules, which still hide emails, URLs, paths,
+        # labelled secrets and anything already known, then hand it to review
+        # so nothing is sent until a person has checked it.
+        try:
+            candidate, cloud_history, redacted, outbound = prepare(
+                original, vault, history, progress, local_call=lambda *_a, **_k: {'entities': []})
+        except Exception:
+            with lock:
+                chat = chats.get(chat_id)
+                if chat and chat['generation'] == generation:
+                    chat.update(state='error', progress='Message was not sent', error=reason)
+            return
         with lock:
             chat = chats.get(chat_id)
-            if chat and chat['generation'] == generation:
-                chat.update(state='error', progress='Message was not sent',
-                            error=str(error) if isinstance(error, Blocked) else 'Local filtering failed. Nothing was sent.')
+            if not chat or chat['generation'] != generation:
+                return
+            turn_id = secrets.token_urlsafe(24)
+            chat.update(vault=candidate, state='reviewing', review=True,
+                        progress='The local model could not check this — review it before sending',
+                        pending={'id': turn_id, 'original': original, 'redacted': redacted,
+                                 'outbound': outbound, 'references': len(candidate.values),
+                                 'degraded': reason},
+                        staged_history=cloud_history)
 
 
 @app.post('/api/chats/<chat_id>/prepare')
