@@ -40,6 +40,8 @@ def load_config():
 load_config()
 from privacy_engine import Blocked, detector, mark_value, prepare, restore
 
+# Python modules here are imported once at start, so a pull that changes this
+# file only takes effect after a restart. Update Private Chat.cmd does that.
 app = Flask(__name__, static_folder='static')
 app.secret_key = secrets.token_bytes(32)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
