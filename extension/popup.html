@@ -1,1 +1,32 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Private Chat</title><body><h3>Private Chat</h3><p>Use your ChatGPT login with local privacy filtering.</p><p><a href="http://127.0.0.1:8787/" target="_blank" rel="noopener">Open Private Chat ↗</a></p><p>Sign in normally at chatgpt.com. Keep the local server running.</p></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Private Chat</title>
+<style>
+  :root { color-scheme: light dark; --ink:#273b36; --soft:#72816b; --bg:#fcfcf9; --line:#dce4dd; --mark:#4d8468; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#dee5df; --soft:#aab6ac; --bg:#121614; --line:#2b332e; --mark:#6aa585; }
+  }
+  body { width: 250px; margin: 0; padding: 18px; background: var(--bg); color: var(--ink);
+         font: 13px/1.6 Inter, ui-sans-serif, -apple-system, "Segoe UI", sans-serif; }
+  .head { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
+  .head svg { width: 22px; height: 22px; }
+  p { color: var(--soft); font-size: 12px; margin: 12px 0 0; }
+  a { display: inline-block; margin-top: 14px; color: var(--mark); font-weight: 500; }
+  .note { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 2.6 29.4 16 16 29.4 2.6 16Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" style="color:var(--mark)"/>
+      <path d="M16 9.4 22.6 16 16 22.6 9.4 16Z" fill="var(--mark)"/>
+    </svg>
+    Private Chat
+  </div>
+  <p>Your ChatGPT login, with private details filtered out locally before anything is sent.</p>
+  <a href="http://127.0.0.1:8787/" target="_blank" rel="noopener">Open Private Chat ↗</a>
+  <p class="note">Sign in normally at chatgpt.com and keep the local app running.</p>
+</body>
+</html>

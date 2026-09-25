@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Private Chat Companion",
-  "version": "0.5.9",
+  "version": "0.5.10",
   "description": "Send locally filtered messages through your signed-in ChatGPT tab and return replies to Private Chat.",
   "permissions": [
     "storage",
@@ -10,6 +10,12 @@
   "host_permissions": [
     "https://chatgpt.com/*"
   ],
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -35,6 +41,12 @@
   ],
   "action": {
     "default_title": "Private Chat \u2014 open the local page",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
   }
 }
