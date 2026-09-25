@@ -291,12 +291,16 @@
     await publish({type:'progress', id:job.id, message:'ChatGPT is writing a reply…'});
     let lastText = '';
     let stableSince = Date.now();
+    // How long this answer actually paused between chunks while streaming. The
+    // wait for "finished" is measured against that rather than a fixed guess,
+    // so a smooth answer lands quickly and a halting one still gets its time.
+    let longestGap = 0;
     // A hidden tab can be throttled hard enough that nothing readable appears.
     // Ask once for it to be brought forward briefly rather than time out.
     let woken = false;
     const readingSince = Date.now();
     while (Date.now() < replyDeadline && running === job) {
-      await delay(600);
+      await delay(300);
       const messages = assistantMessages();
       if (messages.length <= beforeAssistants) continue;
       // ChatGPT can keep a status element as the last assistant node while the
@@ -308,7 +312,11 @@
       const body = latest.querySelector('.markdown');
       const candidate = body ? responseText(body, true) : responseText(latest);
       const text = STATUS_TEXT.test(candidate) ? '' : candidate;
-      if (text !== lastText) { lastText = text; stableSince = Date.now(); }
+      if (text !== lastText) {
+        if (lastText) longestGap = Math.max(longestGap, Date.now() - stableSince);
+        lastText = text;
+        stableSince = Date.now();
+      }
       if (!text && !woken && Date.now() - readingSince > 20000) {
         woken = true;
         await publish({type:'wake', id:job.id});
@@ -317,11 +325,9 @@
       // The turn's own action bar is the only dependable finish signal. Without
       // it, accept only a substantial answer that has stood still far longer
       // than any pause in a stream, so a placeholder can never qualify.
-      // A finished answer never changes again, so waiting costs only seconds,
-      // while a mid-stream pause that outlasts this is rare. Truncating an
-      // answer is far worse than taking longer to accept one.
       const settled = Date.now() - stableSince;
-      if (completed ? settled > 6000 : text.length >= 200 && settled > 20000) {
+      const quiet = Math.min(Math.max(1200, longestGap * 3), 8000);
+      if (completed ? settled > quiet : text.length >= 200 && settled > Math.max(quiet, 20000)) {
         await publish({type:'reply', id:job.id, text, debug: snapshot('captured')});
         running = null;
         return;
