@@ -64,7 +64,13 @@ function applySidebar(collapsed) {
   $('collapse').setAttribute('aria-label', collapsed ? 'Expand the sidebar' : 'Collapse the sidebar');
   $('collapse').title = collapsed ? 'Expand the sidebar' : 'Collapse the sidebar';
 }
+let listSignature = '';
+let messageSignature = '';
 function updateList() {
+  const signature = JSON.stringify([current, [...chats].map(([id, chat]) =>
+    [id, chat.messages.find(m => m.role === 'user')?.text || chat.pending?.original || ''])]);
+  if (signature === listSignature) return;
+  listSignature = signature;
   $('chat-list').replaceChildren();
   for (const [id, chat] of chats) {
     const row = node('div', 'chat-item' + (id === current ? ' active' : ''));
@@ -203,6 +209,11 @@ function render() {
   if (!chat) return;
   const active = busy(chat);
   $('welcome').hidden = chat.messages.length > 0 || active;
+  const signature = JSON.stringify([current, active, $('compare-toggle').checked,
+    chat.messages.map(message => [message.role, message.text]),
+    active ? (chat.pending?.original || chat.draft || '') : '']);
+  if (signature !== messageSignature) {
+  messageSignature = signature;
   $('messages').replaceChildren();
   for (const message of chat.messages) {
     const article = node('article', 'message ' + message.role);
@@ -217,6 +228,7 @@ function render() {
     $('messages').append(article);
   }
   if (active) $('messages').append(node('article', 'message user pending', chat.pending?.original || chat.draft || 'Checking message…'));
+  }
   renderReview(chat);
   const latest = [...chat.messages].reverse().find(m => m.role === 'user');
   showComparison(selectedComparison || chat.pending || (chat.state === 'filtering' ? {original: chat.draft} : latest));
@@ -300,6 +312,7 @@ window.addEventListener('message', async event => {
     return;
   }
   if (data.type === 'ready') {
+    const wasConnected = connected;
     connected = true; $('connection').classList.add('connected'); $('connection-text').textContent = 'Chrome companion connected';
     if (data.version) $('connection-text').textContent += ' · v' + data.version;
     // The app updates itself on launch; the browser will not, so say plainly
@@ -311,8 +324,12 @@ window.addEventListener('message', async event => {
     } else {
       $('connection').classList.remove('outdated');
     }
+    const changed = !wasConnected || extensionVersion !== (data.version || null);
     extensionVersion = data.version || null;
-    $('setup-button').textContent = 'Details'; updateSetup(); render(); return;
+    $('setup-button').textContent = 'Details';
+    updateSetup();
+    if (changed) render();
+    return;
   }
   const chat = [...chats.values()].find(c => c.pending?.id === data.id);
   if (!chat) return;
