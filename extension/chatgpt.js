@@ -239,7 +239,7 @@
     if (running !== job) return;
     if (!visible(editor)) throw new Error('ChatGPT is not ready. Complete sign-in and try again.');
     if (document.querySelector('[data-message-author-role="user"]') || String(editorText(editor) ?? '').trim()) {
-      throw new Error('The ChatGPT tab contains a conversation or draft. Start a new message from Private Chat.');
+      throw new Error('The ChatGPT tab contains a conversation or draft. Start a new message from Privacy Chat.');
     }
 
     await publish({type:'progress', id:job.id, message:'Sending your filtered message to ChatGPT…'});

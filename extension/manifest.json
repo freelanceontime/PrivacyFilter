@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Private Chat Companion",
-  "version": "0.5.10",
-  "description": "Send locally filtered messages through your signed-in ChatGPT tab and return replies to Private Chat.",
+  "name": "Privacy Chat Companion",
+  "version": "0.5.11",
+  "description": "Send locally filtered messages through your signed-in ChatGPT tab and return replies to Privacy Chat.",
   "permissions": [
     "storage",
     "alarms"
@@ -40,7 +40,7 @@
     }
   ],
   "action": {
-    "default_title": "Private Chat \u2014 open the local page",
+    "default_title": "Privacy Chat \u2014 open the local page",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/16.png",

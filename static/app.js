@@ -206,7 +206,7 @@ function render() {
   $('messages').replaceChildren();
   for (const message of chat.messages) {
     const article = node('article', 'message ' + message.role);
-    article.append(node('div', 'message-label', message.role === 'user' ? 'You' : '◈  Private Chat'));
+    article.append(node('div', 'message-label', message.role === 'user' ? 'You' : '◈  Privacy Chat'));
     renderMessage(article, message);
     if (message.role === 'user') {
       const inspect = node('button', 'compare-message', 'Inspect original / redacted');

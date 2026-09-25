@@ -61,7 +61,7 @@ executor = ThreadPoolExecutor(max_workers=2)
 @app.before_request
 def local_boundary():
     if request.host != f'127.0.0.1:{PORT}':
-        return jsonify(error=f'Open {ORIGIN} to use Private Chat.'), 403
+        return jsonify(error=f'Open {ORIGIN} to use Privacy Chat.'), 403
     if request.method not in ('GET', 'HEAD', 'OPTIONS'):
         if request.headers.get('Origin') != ORIGIN or request.headers.get('X-Private-Chat') != '1':
             return jsonify(error='This request must come from the local chat page.'), 403
@@ -433,7 +433,7 @@ if __name__ == '__main__':
     # Fail here rather than on the first message if the endpoint is unusable.
     endpoint = detector.approved_endpoint()
     remote = detector.is_remote(endpoint)
-    print(f'Private Chat: {ORIGIN}', flush=True)
+    print(f'Privacy Chat: {ORIGIN}', flush=True)
     print(f'{"Remote" if remote else "Local"} AI: {endpoint} ({detector.configured_local_model()})', flush=True)
     if remote:
         print('Unredacted text is sent to this host over the internet.', flush=True)
