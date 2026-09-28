@@ -4,7 +4,17 @@ const PREFIX = 'job:';
 const COMPANION_TAB = 'companion-tab';
 const launching = new Set();
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const sendLocal = (tabId, message) => chrome.tabs.sendMessage(tabId, message).catch(() => {});
+// A final reply or error must reach the local page. The page's content script
+// can be momentarily unavailable (a tab still settling after ChatGPT was pulled
+// to the foreground), so retry a delivery that carries an outcome.
+const sendLocal = async (tabId, message) => {
+  const attempts = (message.type === 'reply' || message.type === 'error') ? 5 : 1;
+  for (let i = 0; i < attempts; i++) {
+    try { await chrome.tabs.sendMessage(tabId, message); return true; }
+    catch { if (i < attempts - 1) await delay(400); }
+  }
+  return false;
+};
 const jobKey = id => PREFIX + id;
 async function selectChatGPTTab() {
   const saved = (await chrome.storage.session.get(COMPANION_TAB))[COMPANION_TAB];
@@ -51,10 +61,12 @@ async function selectChatGPTTab() {
 async function finish(id, message) {
   const key = jobKey(id); const job = (await chrome.storage.session.get(key))[key];
   if (!job) return;
+  await restoreTab(job);
+  if (!await sendLocal(job.localTab, {...message,id})) {
+    throw new Error('The Privacy Chat tab did not acknowledge the completed response.');
+  }
   await chrome.storage.session.remove(key);
   await chrome.alarms.clear(key);
-  await restoreTab(job);
-  await sendLocal(job.localTab, {...message,id});
   // Leave the ChatGPT tab available for inspection; never close a user's tab.
 }
 async function chatStatus() {
