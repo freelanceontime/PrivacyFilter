@@ -29,6 +29,7 @@ let chatTabs = 0;
 let defaultInstructions = '';
 let defaultDetector = '';
 let modelReason = '';
+const MAX_MESSAGE_LENGTH = 12000;
 function node(tag, className, text) {
   const element = document.createElement(tag); element.className = className;
   if (text !== undefined) element.textContent = text;
@@ -41,9 +42,17 @@ function fitComposer() {
   prompt.style.height = 'auto';
   prompt.style.height = prompt.scrollHeight + 'px';
 }
+function characterLength(value) { return Array.from(value).length; }
+function updateComposerLimit(value = $('prompt').value) {
+  const count = characterLength(value);
+  const tooLong = count > MAX_MESSAGE_LENGTH;
+  $('character-count').textContent = count.toLocaleString();
+  $('limit-warning').hidden = !tooLong;
+  return count;
+}
 function setPrompt(value) {
   $('prompt').value = value;
-  $('character-count').textContent = value.length.toLocaleString();
+  updateComposerLimit(value);
   fitComposer();
 }
 function chatIcon() {
@@ -238,7 +247,8 @@ function render() {
   $('status').classList.toggle('busy', active);
   $('cancel').hidden = !active;
   $('prompt').disabled = active;
-  $('send').disabled = active || !$('prompt').value.trim();
+  $('send').disabled = active || !$('prompt').value.trim() ||
+    characterLength($('prompt').value) > MAX_MESSAGE_LENGTH;
   $('manual').hidden = !(chat.pending && (chat.manual || (!connected && chat.state === 'prepared')));
   if (chat.manualReason) $('manual-reason').textContent = chat.manualReason;
   if (chat.error) {
@@ -257,6 +267,11 @@ async function newChat() {
 async function send() {
   const chat = chats.get(current); const text = $('prompt').value;
   if (!chat || busy(chat) || !text.trim()) return;
+  const count = characterLength(text);
+  if (count > MAX_MESSAGE_LENGTH) {
+    error(`This message has ${count.toLocaleString()} characters. The full text is still here; split it into messages of 12,000 characters or fewer.`);
+    return;
+  }
   error(''); selectedComparison = null;
   // Mark locally before awaiting to prevent duplicate Enter/click submissions.
   chat.epoch = (chat.epoch || 0) + 1; chat.state = 'filtering'; chat.progress = 'Checking your message locally…'; chat.draft = text; render();
@@ -352,8 +367,9 @@ window.addEventListener('message', async event => {
 $('composer').onsubmit = event => { event.preventDefault(); send(); };
 $('prompt').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {event.preventDefault(); send();} };
 $('prompt').oninput = () => {
-  $('character-count').textContent = $('prompt').value.length.toLocaleString();
-  $('send').disabled = busy(chats.get(current)) || !$('prompt').value.trim();
+  const count = updateComposerLimit();
+  $('send').disabled = busy(chats.get(current)) || !$('prompt').value.trim() ||
+    count > MAX_MESSAGE_LENGTH;
   fitComposer();
 };
 // A paste lands after the event, and rewrapping on resize changes the height.
