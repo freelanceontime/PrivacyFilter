@@ -49,6 +49,26 @@ class PrivacyDetectorTests(unittest.TestCase):
         self.assertIn('user role', prompt)
         self.assertIn('extract only that embedded name', prompt)
 
+    def test_engagement_paragraph_redacts_companies_and_named_application(self):
+        text = ('Example International approached Testhouse Limited to conduct a comprehensive '
+                'security assessment of Customer Portal web application. Upon inspection, it was '
+                'observed that Customer Portal provides customers with current market data.')
+
+        def empty_model(_messages, _schema, model=None):
+            return {'entities': []}
+
+        vault = privacy.Vault(namespace='test')
+        result = privacy.redact_text(text, vault, local_call=empty_model)
+
+        self.assertEqual(
+            '__PRIVATE_CLIENT_test_0001__ approached __PRIVATE_CLIENT_test_0002__ to conduct a '
+            'comprehensive security assessment of __PRIVATE_CLIENT_test_0003__ web application. '
+            'Upon inspection, it was observed that __PRIVATE_CLIENT_test_0003__ provides customers '
+            'with current market data.', result)
+        self.assertEqual(
+            ['Example International', 'Testhouse Limited', 'Customer Portal'],
+            list(vault.values.values()))
+
 
 if __name__ == '__main__':
     unittest.main()
