@@ -69,6 +69,40 @@ class PrivacyDetectorTests(unittest.TestCase):
             ['Example International', 'Testhouse Limited', 'Customer Portal'],
             list(vault.values.values()))
 
+    def test_finding_code_title_is_not_redacted_as_a_project(self):
+        text = ('M2: Insecure Design – Lower-Privileged Users Can Create Administrative Accounts\n'
+                'Severity\tMedium')
+
+        def overzealous_model(_messages, _schema, model=None):
+            return {'entities': [
+                {'text': 'M2', 'kind': 'PROJECT'},
+                {'text': 'Insecure Design – Lower-Privileged Users Can Create Administrative Accounts',
+                 'kind': 'PROJECT'},
+            ]}
+
+        vault = privacy.Vault(namespace='test')
+        result = privacy.redact_text(text, vault, local_call=overzealous_model)
+
+        self.assertEqual(text, result)
+        self.assertEqual({}, vault.values)
+
+    def test_client_name_inside_finding_title_is_still_redacted(self):
+        text = 'M2: Acme Research Authority Portal Allows Administrative Account Creation'
+
+        def model(_messages, _schema, model=None):
+            return {'entities': [
+                {'text': text, 'kind': 'PROJECT'},
+                {'text': 'Acme Research Authority', 'kind': 'CLIENT'},
+            ]}
+
+        vault = privacy.Vault(namespace='test')
+        result = privacy.redact_text(text, vault, local_call=model)
+
+        self.assertEqual(
+            'M2: __PRIVATE_CLIENT_test_0001__ Portal Allows Administrative Account Creation',
+            result)
+        self.assertEqual(['Acme Research Authority'], list(vault.values.values()))
+
 
 if __name__ == '__main__':
     unittest.main()

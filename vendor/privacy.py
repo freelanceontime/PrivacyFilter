@@ -255,6 +255,33 @@ def is_public_role_label(entity):
             and entity['text'].strip().casefold() in PUBLIC_ROLE_LABELS)
 
 
+FINDING_CODE = re.compile(
+    r'\b(?:[A-Z]{1,5}-?\d+(?:\.\d+)*|CWE-\d+|CVE-\d{4}-\d+)\s*:\s*\S', re.IGNORECASE)
+FINDING_LABEL = re.compile(
+    r'^\s*(?:ticket\s+title|finding(?:\s+title)?|issue(?:\s+title)?|title)\s*[:\t]\s*\S',
+    re.IGNORECASE)
+
+
+def finding_title_spans(text):
+    """Locate report-title lines whose generic wording must remain useful.
+
+    Broad PROJECT/SCOPE/VALUE guesses are ignored only inside these spans.
+    Strongly typed entities such as CLIENT, PERSON and SECRET still win, so a
+    real client name embedded in a finding title remains concealed.
+    """
+    spans = []
+    for line in re.finditer(r'[^\r\n]+', text):
+        value = line.group()
+        if FINDING_CODE.search(value) or FINDING_LABEL.search(value):
+            spans.append(line.span())
+    return spans
+
+
+def is_generic_finding_title_match(entity, start, end, title_spans):
+    return (entity.get('kind') in ('PROJECT', 'SCOPE', 'VALUE') and
+            any(left <= start and end <= right for left, right in title_spans))
+
+
 def detector_prompt():
     """The detector's guidance, replaceable from the app settings. The JSON schema
     is appended separately, so a reworded prompt still has to answer in the shape
@@ -421,12 +448,15 @@ def redact_text(text, vault, known=(), model=None, local_call=ollama_json,
     protected = sorted((m.start(), m.end()) for marker in protected_markers
                        for m in re.finditer(re.escape(marker), text, flags=re.IGNORECASE))
     spans = []
+    title_spans = finding_title_spans(text)
     for entity in entities:
         for match in re.finditer(re.escape(entity['text']), text, flags=re.IGNORECASE):
             # Preserve marker spans even if an extraction crosses a marker or
             # contains just part of it. Real private text on either side still
             # gets reviewed and concealed; it must not be discarded wholesale.
             start, end = match.span()
+            if is_generic_finding_title_match(entity, start, end, title_spans):
+                continue
             for left, right in protected:
                 if right <= start:
                     continue
