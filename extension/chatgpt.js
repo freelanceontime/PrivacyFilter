@@ -61,7 +61,7 @@
     // Answer bodies remain markdown/prose inside the main conversation, so use
     // those as a structural fallback. Baseline text tracking below prevents old
     // page content from being mistaken for the newly generated answer.
-    for (const body of document.querySelectorAll('main .markdown,main .prose,[role="main"] .markdown,[role="main"] .prose')) {
+    for (const body of document.querySelectorAll('main .markdown,main .prose,main [class*="MarkdownRoot"],[role="main"] .markdown,[role="main"] .prose,[role="main"] [class*="MarkdownRoot"]')) {
       if (body.closest('form,nav,aside,[data-message-author-role="user"],[data-turn="user"],[data-role="user"],[data-author="user"]')) continue;
       const turn = body.closest('[data-testid^="conversation-turn-"],article') || body;
       if (!seen.has(turn)) { seen.add(turn); turns.push(turn); }
@@ -76,9 +76,11 @@
     }
     return turns;
   }
+  // The current document-card rollout replaced the old markdown/prose class
+  // with a generated MarkdownRoot-* class on the complete response body.
   const answerBody = message => {
-    if (message?.matches?.('.markdown,.prose')) return message;
-    return message?.querySelector('[data-message-author-role="assistant"] .markdown,.markdown,[data-message-author-role="assistant"] .prose,.prose');
+    if (message?.matches?.('.markdown,.prose,[class*="MarkdownRoot"]')) return message;
+    return message?.querySelector('[data-message-author-role="assistant"] .markdown,.markdown,[data-message-author-role="assistant"] .prose,.prose,[class*="MarkdownRoot"]');
   };
   const userMessages = () => document.querySelectorAll('[data-message-author-role="user"],[data-turn="user"],[data-role="user"],[data-author="user"]');
   // A turn only grows its action bar once the answer is complete. The bar must
@@ -180,7 +182,7 @@
     // swallow its own commentary.
     const length = node.textContent.trim().length;
     const fenced = options.fence && !options.inBlock && !options.root &&
-      (tag === 'PRE' || (node.querySelector(COPY_CONTROL) && length > 40 && length < options.whole * 0.95));
+      (tag === 'PRE' || (node.querySelector(COPY_CONTROL) && length > 40 && options.whole - length >= 16));
     if (fenced) out.parts.push({gap: 2}, {text: tag === 'PRE' ? FENCE + 'code' : FENCE}, {gap: 1});
     // ChatGPT lays parts of a reply out with CSS rather than block tags, so the
     // computed display decides what starts a new line. A preformatted
@@ -400,7 +402,7 @@
       const messages = assistantMessages();
       const changed = messages.filter(message => {
         const body = answerBody(message);
-        const text = responseText(body || message, Boolean(body));
+        const text = responseText(body || message, true);
         return !beforeAssistants.has(message) || beforeAssistants.get(message) !== text;
       });
       if (!changed.length) {
@@ -418,7 +420,7 @@
       // ChatGPT renders its own progress inside the turn, body and all, so the
       // candidate is judged by what it says: a status word is never an answer.
       const body = answerBody(latest);
-      const candidate = body ? responseText(body, true) : responseText(latest);
+      const candidate = responseText(body || latest, true);
       const text = STATUS_TEXT.test(candidate) ? '' : candidate;
       if (text !== lastText) {
         if (lastText) longestGap = Math.max(longestGap, Date.now() - stableSince);
