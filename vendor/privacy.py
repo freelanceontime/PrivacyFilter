@@ -283,6 +283,26 @@ def is_stopword_label(entity):
             and entity['text'].strip().casefold() in STOPWORDS)
 
 
+# Words a capitalised run may NOT begin with: greetings, salutations and
+# sentence-opening function words. Without this a greeting ("Hi Margaret
+# Ellsworth") or an opener ("Good. Now ...") gets swept into a name match.
+# Common first names (Will, May, Grace) are deliberately excluded.
+NAME_LEAD_SKIP = frozenset({
+    'hi', 'hey', 'hello', 'dear', 'greetings', 'thanks', 'thank', 'please', 'kindly',
+    'regards', 'best', 'cheers', 'sincerely', 'respectfully', 'cordially', 'warm', 'warmest',
+    're', 'fwd', 'fw', 'cc', 'bcc', 'attn', 'ps',
+    'the', 'a', 'an', 'this', 'that', 'these', 'those', 'such', 'another',
+    'i', 'we', 'you', 'they', 'it', 'he', 'she', 'our', 'your', 'their', 'my', 'his', 'her', 'its',
+    'and', 'or', 'but', 'so', 'yet', 'nor', 'also', 'then', 'however', 'therefore', 'furthermore',
+    'moreover', 'meanwhile', 'now', 'here', 'there', 'if', 'when', 'while', 'because', 'since',
+    'although', 'though', 'good', 'subject', 'to', 'from', 'note',
+})
+# A run of two or more capitalised words that does not begin with one of those
+# lead words: a personal name or other proper noun.
+PERSON_SEQUENCE_RE = (r'\b(?!(?i:' + '|'.join(sorted(NAME_LEAD_SKIP)) +
+                      r')\b)[A-Z][\w\x27.-]*(?:\s+[A-Z][\w\x27.-]*)+\b')
+
+
 FINDING_CODE = re.compile(
     r'\b(?:[A-Z]{1,5}-?\d+(?:\.\d+)*|CWE-\d+|CVE-\d{4}-\d+)\s*:\s*\S', re.IGNORECASE)
 FINDING_LABEL = re.compile(
@@ -381,7 +401,7 @@ def redact_text(text, vault, known=(), model=None, local_call=ollama_json,
         # else starts that way. Catch it by rule rather than hope a model does.
         ('SECRET', r'\beyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]+){0,2}'),
         ('SECRET', r'(?i)\bbearer\s+([A-Za-z0-9._~+/=-]{8,})'),
-        ('SECRET', r'(?i)(?:password|passwd|secret|token|api[_ -]?key)\s*[:=]\s*(?:"([^"]+)"|\x27([^\x27]+)\x27|([^\s,;]+))'),
+        ('SECRET', r'(?i)(?:password|passphrase|passwd|pwd|secret|token|api[_ -]?key)\s*(?:[:=]|\bis\b|\bwas\b)\s*(?:"([^"]+)"|\x27([^\x27]+)\x27|([^\s,;]+))'),
         # Engagement introductions strongly identify the commissioning client,
         # including company names that have no legal suffix.
         ('CLIENT', r'(?m)(?:^|(?<=[.!?])\s)([A-Z][\w&\x27.-]*'
@@ -411,10 +431,10 @@ def redact_text(text, vault, known=(), model=None, local_call=ollama_json,
         # other proper noun. gemma4 misses common names such as "John
         # Smith", so the name shape is redacted by rule rather than left
         # to the model. Placed last so an earlier CLIENT match keeps its
-        # kind on the same span; the stopword guard still drops a lone
-        # function word, and a sentence-initial single capital is not
-        # matched because the following word must be capitalised too.
-        ('PERSON', r'\b[A-Z][\w\x27.-]*(?:\s+[A-Z][\w\x27.-]*)+\b'),
+        # kind on the same span; the stopword guard drops a lone function
+        # word, and PERSON_SEQUENCE_RE refuses to begin on a greeting or
+        # sentence-opening word so "Hi Margaret Ellsworth" hides only the name.
+        ('PERSON', PERSON_SEQUENCE_RE),
     ]:
         for match in re.finditer(pattern, text):
             value = next((g for g in match.groups() if g is not None), match.group())

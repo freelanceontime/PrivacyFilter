@@ -229,6 +229,10 @@
       .replace(/^[ \t]*((?:[•▪◦‣∙·•]|\d{1,3}[.)]))[ \t]*\n+[ \t]*(?=\S)/gm, '$1 ')
       // Consecutive items belong together rather than drifting apart.
       .replace(/^((?:[•▪◦‣∙·•]|\d{1,3}[.)])[ \t].*)\n{2,}(?=(?:[•▪◦‣∙·•]|\d{1,3}[.)])[ \t])/gm, '$1\n')
+      // Drop any line that is only a streaming status word ("Writing",
+      // "Thinking", …); it leaks in when a capture races the live stream, and
+      // can land mid-answer, not just at the start.
+      .replace(/^[ \t]*(?:writing|thinking|searching|reasoning|analysing|analyzing|working|generating|typing|responding|reading)[ \t.…]*$\n?/gim, '')
       .replace(/\n{3,}/g, '\n\n').trim();
   }
 
