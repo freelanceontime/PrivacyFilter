@@ -80,7 +80,7 @@ ENTITY_SCHEMA = {
         'required': ['text', 'kind']}}}, 'required': ['entities']}
 
 
-DEFAULT_ENDPOINT = 'http://192.168.1.212:11434'
+DEFAULT_ENDPOINT = 'http://127.0.0.1:11434'
 # Plain HTTP is accepted only for a loopback or RFC1918 address. A routable
 # detector host means unredacted text crosses the internet, so it is refused
 # unless it is deliberately enabled, and then only over TLS.
@@ -255,6 +255,34 @@ def is_public_role_label(entity):
             and entity['text'].strip().casefold() in PUBLIC_ROLE_LABELS)
 
 
+# A lone English function word carries no identity, but a small local model
+# will sometimes tag one (an article, a preposition) as a CLIENT/PROJECT and
+# then every occurrence of that word gets masked, which Review cannot undo
+# (marking only ever hides more). Deterministic signals are unaffected: this
+# only drops a single-word, loose-kind guess the model made on its own, never
+# a regex match, a multi-word name, or a strongly-typed kind.
+STOPWORDS = frozenset({
+    'a', 'an', 'the', 'this', 'that', 'these', 'those', 'each', 'every', 'some', 'any',
+    'no', 'all', 'both', 'few', 'many', 'most', 'such', 'other', 'another', 'same',
+    'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+    'my', 'your', 'his', 'its', 'our', 'their', 'mine', 'yours', 'ours', 'theirs',
+    'who', 'whom', 'whose', 'which', 'what', 'and', 'or', 'but', 'nor', 'so', 'yet',
+    'for', 'because', 'although', 'though', 'while', 'if', 'unless', 'since', 'as',
+    'than', 'whether', 'of', 'in', 'on', 'at', 'to', 'by', 'with', 'from', 'into',
+    'onto', 'over', 'under', 'about', 'above', 'below', 'between', 'among', 'through',
+    'during', 'before', 'after', 'against', 'without', 'within', 'upon', 'per',
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'do', 'does', 'did',
+    'have', 'has', 'had', 'will', 'would', 'shall', 'should', 'can', 'could', 'may',
+    'might', 'must', 'not', 'here', 'there', 'then', 'when', 'where', 'why', 'how',
+})
+
+
+def is_stopword_label(entity):
+    return (isinstance(entity, dict) and entity.get('kind') in ('CLIENT', 'PROJECT', 'SCOPE', 'VALUE')
+            and isinstance(entity.get('text'), str)
+            and entity['text'].strip().casefold() in STOPWORDS)
+
+
 FINDING_CODE = re.compile(
     r'\b(?:[A-Z]{1,5}-?\d+(?:\.\d+)*|CWE-\d+|CVE-\d{4}-\d+)\s*:\s*\S', re.IGNORECASE)
 FINDING_LABEL = re.compile(
@@ -375,10 +403,27 @@ def redact_text(text, vault, known=(), model=None, local_call=ollama_json,
                    r'(?:Application|App|Portal|Platform|System|Service))'
                    r'(?=\s+(?i:allows?|provides?|exposes?|enables?|supports?|contains?|'
                    r'lets?|is|was|has|can)\b|[.:,;]|$)'),
+        # A title/honorific before a capitalised word is almost always a
+        # specific person. High precision, so it leads the name rules.
+        ('PERSON', r'\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Professor|Sir|Dame|Lord|Lady)\.?\s+'
+                   r'[A-Z][\w\x27.-]*(?:\s+[A-Z][\w\x27.-]*){0,2}'),
+        # Two or more consecutive capitalised words: a personal name or
+        # other proper noun. gemma4 misses common names such as "John
+        # Smith", so the name shape is redacted by rule rather than left
+        # to the model. Placed last so an earlier CLIENT match keeps its
+        # kind on the same span; the stopword guard still drops a lone
+        # function word, and a sentence-initial single capital is not
+        # matched because the following word must be capitalised too.
+        ('PERSON', r'\b[A-Z][\w\x27.-]*(?:\s+[A-Z][\w\x27.-]*)+\b'),
     ]:
         for match in re.finditer(pattern, text):
             value = next((g for g in match.groups() if g is not None), match.group())
-            entities.append({'text': value, 'kind': kind})
+            # A broad CLIENT rule can grab a lone capitalised function word
+            # ("The" before "portal"). Dropping it keeps articles out of the
+            # vault, which Review cannot undo once a value is masked.
+            entity = {'text': value, 'kind': kind}
+            if not is_stopword_label(entity):
+                entities.append(entity)
     def valid_entity(entity):
         return entity_status(entity, text) == 'valid'
     if not all(valid_entity(entity) for entity in entities):
@@ -443,7 +488,8 @@ def redact_text(text, vault, known=(), model=None, local_call=ollama_json,
                     accepted.extend(precise if precise is not None else [{'text': span_text, 'kind': 'VALUE'}])
                 public = {term.casefold() for term in public_terms}
                 entities.extend(e for e in accepted
-                                if e['text'].casefold() not in public and not is_public_role_label(e))
+                                if e['text'].casefold() not in public
+                                and not is_public_role_label(e) and not is_stopword_label(e))
                 break
         if attempt:
             raise Blocked('Invalid or hallucinated local entity after retry; cloud request blocked.')

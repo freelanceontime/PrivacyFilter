@@ -27,16 +27,17 @@ The extension only connects to `http://127.0.0.1:8787/`, not `localhost` or a pu
 ## Local AI
 
 The included `vendor/privacy.py` comes from your Private Pi bridge. It defaults to
-**http://192.168.1.212:11434**, model **gemma4:latest**. Your Windows PC must be on
-that LAN or a trusted VPN that can reach it. Original text reaches that LAN model
-via HTTP; it is not on-device inference in the Chrome tab.
+**http://127.0.0.1:11434**, model **gemma4:latest** — an Ollama on this same PC. To
+use a shared model on another machine, set its address in **Settings** or `config.json`;
+that PC must be on the same LAN or a trusted VPN that can reach it. Original text
+reaches that model via HTTP; it is not on-device inference in the Chrome tab.
 
 Change it in **Settings** in the sidebar (address, model, remote access, token,
 and light/dark appearance). Saving applies immediately to new messages and writes
 `config.json` beside the app, which can also be edited directly:
 
 ```json
-{"local_ai": "http://192.168.1.212:11434", "local_model": "gemma4:latest"}
+{"local_ai": "http://127.0.0.1:11434", "local_model": "gemma4:latest"}
 ```
 
 `PI_PRIVACY_ENDPOINT`, `PI_PRIVACY_MODEL`, `PI_PRIVACY_ALLOW_REMOTE` and
